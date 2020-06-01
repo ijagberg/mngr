@@ -3,6 +3,7 @@ use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
+extern crate lazy_static;
 
 mod command;
 
