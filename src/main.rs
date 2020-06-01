@@ -6,6 +6,7 @@ extern crate log;
 extern crate lazy_static;
 
 mod command;
+mod db;
 
 #[derive(StructOpt, Debug)]
 struct Opts {
@@ -15,7 +16,13 @@ struct Opts {
 
 #[derive(StructOpt, Debug)]
 enum Subcommand {
-    ParseWebserverLogs,
+    ParseWebserverLogs(ParseWebserverLogsOpts),
+}
+
+#[derive(StructOpt, Debug)]
+pub struct ParseWebserverLogsOpts {
+    #[structopt(long, env = "MNGR_DATABASE_PATH")]
+    db_path: String,
 }
 
 #[tokio::main]
@@ -38,8 +45,8 @@ async fn main() {
 
     debug!("Execution with opts: {:#?}", opts);
     match opts.cmd {
-        Subcommand::ParseWebserverLogs => {
-            let handler = command::ParseWebserverLogs::new();
+        Subcommand::ParseWebserverLogs(opts) => {
+            let handler = command::ParseWebserverLogs::new(opts);
             handler.parse().unwrap();
         }
     }

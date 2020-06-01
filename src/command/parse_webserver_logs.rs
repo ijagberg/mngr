@@ -1,3 +1,5 @@
+use crate::{db, ParseWebserverLogsOpts};
+use db::{Db, MetricRow};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
@@ -9,16 +11,18 @@ lazy_static! {
     static ref METRIC_REGEX: Regex = Regex::new(r#".*metric:(?P<metric_csv>.+)"#).unwrap();
 }
 
-type Metrics = HashMap<String, Vec<f64>>;
+type Metrics = HashMap<String, Vec<(f64, i64)>>;
 
-pub struct ParseWebserverLogs;
+pub struct ParseWebserverLogs {
+    opts: ParseWebserverLogsOpts,
+}
 
 impl ParseWebserverLogs {
-    pub fn new() -> Self {
-        Self
+    pub fn new(opts: ParseWebserverLogsOpts) -> Self {
+        Self { opts }
     }
 
-    pub fn parse(&self) -> Result<Metrics, ()> {
+    pub fn parse(&self) -> Result<(), ()> {
         let stdin = io::stdin();
 
         info!("parsing webserver logs...");
@@ -38,26 +42,54 @@ impl ParseWebserverLogs {
         info!("parsed {} metric lines...", metric_lines.len());
 
         let mut metrics = Metrics::new();
-        for (name, value) in metric_lines.iter().filter_map(|m| Self::parse_line(m).ok()) {
+        for (name, value, timestamp) in metric_lines.iter().filter_map(|m| Self::parse_line(m).ok())
+        {
             metrics
                 .entry(name)
                 .or_insert_with(|| Vec::new())
-                .push(value);
+                .push((value, timestamp));
         }
 
-        Ok(metrics)
+        self.insert_in_db(metrics)?;
+
+        Ok(())
     }
 
-    fn parse_line(line: &str) -> Result<(String, f64), ()> {
+    fn insert_in_db(&self, metrics: Metrics) -> Result<(), ()> {
+        let timer = std::time::Instant::now();
+        let db: Db<MetricRow> = Db::new(self.opts.db_path.clone());
+
+        for (name, values) in &metrics {
+            for (value, timestamp) in values {
+                db.insert_metric(MetricRow::new(name.clone(), *value, *timestamp))?;
+            }
+        }
+
+        info!(
+            "inserted {} metrics in {:?}",
+            metrics.len(),
+            timer.elapsed()
+        );
+        Ok(())
+    }
+
+    fn parse_line(line: &str) -> Result<(String, f64, i64), ()> {
         let parts: Vec<_> = line.split(";").collect();
 
-        if parts.len() != 2 {
+        if parts.len() != 3 {
             return Err(());
         }
 
         let name: String = parts[0].to_owned();
-        let value: f64 = parts[1].parse().map_err(|_| ())?;
+        let value: f64 = parts[1].parse().map_err(|e| {
+            error!("{:?}", e);
+            ()
+        })?;
+        let timestamp: i64 = parts[2].parse().map_err(|e| {
+            error!("{:?}", e);
+            ()
+        })?;
 
-        Ok((name, value))
+        Ok((name, value, timestamp))
     }
 }
