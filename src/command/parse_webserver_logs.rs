@@ -63,7 +63,7 @@ impl ParseWebserverLogs {
         for (name, values) in &metrics {
             for (value, timestamp) in values {
                 if let Err(e) = db.insert_metric(MetricRow::new(name.clone(), *value, *timestamp)) {
-                    error!(
+                    warn!(
                         "failed to insert metric '{}' with error message '{}'",
                         name, e
                     );
