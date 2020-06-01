@@ -59,15 +59,23 @@ impl ParseWebserverLogs {
         let timer = std::time::Instant::now();
         let db: Db<MetricRow> = Db::new(self.opts.db_path.clone());
 
+        let mut successful_inserts = 0;
         for (name, values) in &metrics {
             for (value, timestamp) in values {
-                db.insert_metric(MetricRow::new(name.clone(), *value, *timestamp))?;
+                if let Err(e) = db.insert_metric(MetricRow::new(name.clone(), *value, *timestamp)) {
+                    error!(
+                        "failed to insert metric '{}' with error message '{}'",
+                        name, e
+                    );
+                } else {
+                    successful_inserts += 1;
+                }
             }
         }
 
         info!(
             "inserted {} metrics in {:?}",
-            metrics.len(),
+            successful_inserts,
             timer.elapsed()
         );
         Ok(())
