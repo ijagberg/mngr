@@ -47,7 +47,10 @@ async fn main() {
     match opts.cmd {
         Subcommand::ParseWebserverLogs(opts) => {
             let handler = command::ParseWebserverLogs::new(opts);
-            handler.parse().unwrap();
+            match handler.parse() {
+                Ok(_) => info!("parsing webserver logs succeeded"),
+                Err(e) => error!("parsing webserver logs failed with error message: '{}'", e),
+            };
         }
     }
 }

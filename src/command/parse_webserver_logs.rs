@@ -22,7 +22,7 @@ impl ParseWebserverLogs {
         Self { opts }
     }
 
-    pub fn parse(&self) -> Result<(), ()> {
+    pub fn parse(&self) -> Result<(), String> {
         let stdin = io::stdin();
 
         info!("parsing webserver logs...");
@@ -55,7 +55,7 @@ impl ParseWebserverLogs {
         Ok(())
     }
 
-    fn insert_in_db(&self, metrics: Metrics) -> Result<(), ()> {
+    fn insert_in_db(&self, metrics: Metrics) -> Result<(), String> {
         let timer = std::time::Instant::now();
         let db: Db<MetricRow> = Db::new(self.opts.db_path.clone());
 
@@ -73,22 +73,16 @@ impl ParseWebserverLogs {
         Ok(())
     }
 
-    fn parse_line(line: &str) -> Result<(String, f64, i64), ()> {
+    fn parse_line(line: &str) -> Result<(String, f64, i64), String> {
         let parts: Vec<_> = line.split(";").collect();
 
         if parts.len() != 3 {
-            return Err(());
+            return Err("wrong number of values in metric csv".into());
         }
 
         let name: String = parts[0].to_owned();
-        let value: f64 = parts[1].parse().map_err(|e| {
-            error!("{:?}", e);
-            ()
-        })?;
-        let timestamp: i64 = parts[2].parse().map_err(|e| {
-            error!("{:?}", e);
-            ()
-        })?;
+        let value: f64 = parts[1].parse().map_err(|e| format!("{:?}", e))?;
+        let timestamp: i64 = parts[2].parse().map_err(|e| format!("{:?}", e))?;
 
         Ok((name, value, timestamp))
     }

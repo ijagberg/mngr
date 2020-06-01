@@ -14,14 +14,11 @@ impl Db<MetricRow> {
         }
     }
 
-    fn get_connection(&self) -> Result<rusqlite::Connection, ()> {
-        rusqlite::Connection::open(&self.path).map_err(|e| {
-            error!("{:?}", e);
-            ()
-        })
+    fn get_connection(&self) -> Result<rusqlite::Connection, String> {
+        rusqlite::Connection::open(&self.path).map_err(|e| format!("{:?}", e))
     }
 
-    pub fn insert_metric(&self, metric: MetricRow) -> Result<(), ()> {
+    pub fn insert_metric(&self, metric: MetricRow) -> Result<(), String> {
         let db = self.get_connection()?;
 
         db.execute(
@@ -30,10 +27,7 @@ impl Db<MetricRow> {
             VALUES (?1, ?2, ?3)",
             params![metric.name, metric.value, metric.timestamp],
         )
-        .map_err(|e| {
-            error!("{:?}", e);
-            ()
-        })?;
+        .map_err(|e| format!("{:?}", e))?;
 
         Ok(())
     }
