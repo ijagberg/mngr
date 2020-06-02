@@ -17,12 +17,21 @@ struct Opts {
 #[derive(StructOpt, Debug)]
 enum Subcommand {
     ParseWebserverLogs(ParseWebserverLogsOpts),
+    IntegrationTests(IntegrationTestsOpts),
 }
 
 #[derive(StructOpt, Debug)]
 pub struct ParseWebserverLogsOpts {
     #[structopt(long, env = "MNGR_DATABASE_PATH")]
     db_path: String,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct IntegrationTestsOpts {
+    #[structopt(long, default_value = "localhost")]
+    url: String,
+    #[structopt(long, default_value = "3001")]
+    port: u32,
 }
 
 #[tokio::main]
@@ -51,6 +60,10 @@ async fn main() {
                 Ok(_) => info!("parsing webserver logs succeeded"),
                 Err(e) => error!("parsing webserver logs failed with error message: '{}'", e),
             };
+        }
+        Subcommand::IntegrationTests(opts) => {
+            let handler = command::IntegrationTests::new(opts);
+            handler.run_tests().await;
         }
     }
 }
