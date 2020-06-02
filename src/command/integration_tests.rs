@@ -18,8 +18,6 @@ impl IntegrationTests {
     pub async fn run_tests(&self) {
         info!("Adding user 'test_user'...");
         self.test_add_user().await;
-        info!("Set user to admin...");
-        self.test_set_role().await;
         info!("Deleting user 'test_user'...");
         self.test_delete_user().await;
     }
