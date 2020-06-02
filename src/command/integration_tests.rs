@@ -33,7 +33,7 @@ impl IntegrationTests {
 
         let response = self
             .client
-            .post(&format!("{}:{}", self.opts.url, self.opts.port))
+            .post(&self.opts.url)
             .body(user_request)
             .send()
             .await

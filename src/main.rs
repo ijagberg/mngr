@@ -30,8 +30,6 @@ pub struct ParseWebserverLogsOpts {
 pub struct IntegrationTestsOpts {
     #[structopt(long, default_value = "localhost")]
     url: String,
-    #[structopt(long, default_value = "3001")]
-    port: u32,
 }
 
 #[tokio::main]
