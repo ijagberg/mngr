@@ -1,4 +1,5 @@
 use crate::IntegrationTestsOpts;
+use methods::{JsonRpcRequest, JsonRpcVersion};
 
 pub struct IntegrationTests {
     opts: IntegrationTestsOpts,
@@ -17,32 +18,29 @@ impl IntegrationTests {
     }
 
     async fn test_add_user(&self) -> Result<(), ()> {
-        let user_request = r#"
-            {
-                "jsonrpc": "2.0",
-                "method": "add_user",
-                "id": "mngr_test_add_user",
-                "params": {
-                    "user": {
-                        "username": "test_user",
-                        "password": "test_password"
-                    }
-                }
-            }
-        "#;
+        let params = methods::AddUserParams::new(methods::User::new(
+            "test_user".into(),
+            "test_password".into(),
+        ));
+        let request = JsonRpcRequest::new(
+            JsonRpcVersion::Two,
+            methods::Method::AddUser.to_string(),
+            serde_json::to_value(params).unwrap(),
+            Some("mngr_test_add_user".into()),
+        );
 
-        let response = self
+        let response: serde_json::Value = self
             .client
             .post(&self.opts.url)
-            .body(user_request)
+            .body(serde_json::to_string(&request).unwrap())
             .send()
             .await
             .unwrap()
-            .text()
+            .json()
             .await
             .unwrap();
 
-        info!("response: '{}'", response);
+        info!("response: '{:?}'", response);
 
         Ok(())
     }

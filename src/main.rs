@@ -6,7 +6,6 @@ extern crate log;
 extern crate lazy_static;
 
 mod command;
-mod db;
 
 #[derive(StructOpt, Debug)]
 struct Opts {
@@ -16,7 +15,6 @@ struct Opts {
 
 #[derive(StructOpt, Debug)]
 enum Subcommand {
-    ParseWebserverLogs(ParseWebserverLogsOpts),
     IntegrationTests(IntegrationTestsOpts),
 }
 
@@ -52,13 +50,6 @@ async fn main() {
 
     debug!("Execution with opts: {:#?}", opts);
     match opts.cmd {
-        Subcommand::ParseWebserverLogs(opts) => {
-            let handler = command::ParseWebserverLogs::new(opts);
-            match handler.parse() {
-                Ok(_) => info!("parsing webserver logs succeeded"),
-                Err(e) => error!("parsing webserver logs failed with error message: '{}'", e),
-            };
-        }
         Subcommand::IntegrationTests(opts) => {
             let handler = command::IntegrationTests::new(opts);
             handler.run_tests().await;
