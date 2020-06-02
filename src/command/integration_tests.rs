@@ -23,15 +23,17 @@ impl IntegrationTests {
                 "method": "add_user",
                 "id": "mngr_test_add_user",
                 "params": {
-                    "username": "test_user",
-                    "password": "test_password"
+                    "user": {
+                        "username": "test_user",
+                        "password": "test_password"
+                    }
                 }
             }
         "#;
 
         let response = self
             .client
-            .post(&self.opts.url)
+            .post(&format!("{}:{}", self.opts.url, self.opts.port))
             .body(user_request)
             .send()
             .await
