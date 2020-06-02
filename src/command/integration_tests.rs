@@ -1,4 +1,5 @@
 use crate::IntegrationTestsOpts;
+use webserver_client::WebserverClient;
 use webserver_contracts::{
     user::{DeleteUserParams, SetRoleParams, User},
     JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method, ResponseKind,
@@ -6,12 +7,15 @@ use webserver_contracts::{
 
 pub struct IntegrationTests {
     opts: IntegrationTestsOpts,
-    client: reqwest::Client,
+    client: WebserverClient,
 }
 
 impl IntegrationTests {
     pub fn new(opts: IntegrationTestsOpts) -> Self {
-        let client = reqwest::Client::new();
+        let client = WebserverClient::new()
+            .with_url(opts.url.clone())
+            .build()
+            .unwrap();
         Self { opts, client }
     }
 
@@ -33,16 +37,7 @@ impl IntegrationTests {
             Some("mngr_test_add_user".into()),
         );
 
-        let response: JsonRpcResponse = self
-            .client
-            .post(&self.opts.url)
-            .body(serde_json::to_string(&request).unwrap())
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         match response.kind() {
             ResponseKind::Success => info!("success response"),
@@ -64,16 +59,7 @@ impl IntegrationTests {
             Some("mngr_test_set_role".into()),
         );
 
-        let response: JsonRpcResponse = self
-            .client
-            .post(&self.opts.url)
-            .body(serde_json::to_string(&request).unwrap())
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         match response.kind() {
             ResponseKind::Success => info!("success response"),
@@ -93,16 +79,7 @@ impl IntegrationTests {
             Some("mngr_test_delete_user".into()),
         );
 
-        let response: JsonRpcResponse = self
-            .client
-            .post(&self.opts.url)
-            .body(serde_json::to_string(&request).unwrap())
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         match response.kind() {
             ResponseKind::Success => info!("success response"),

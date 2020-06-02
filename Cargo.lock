@@ -548,11 +548,11 @@ dependencies = [
  "log",
  "pretty_env_logger 0.4.0",
  "regex",
- "reqwest",
  "serde",
  "serde_json",
  "structopt",
  "tokio",
+ "webserver_client",
  "webserver_contracts",
 ]
 
@@ -1321,6 +1321,14 @@ checksum = "8bc359e5dd3b46cb9687a051d50a2fdd228e4ba7cf6fcf861a5365c3d671a642"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webserver_client"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "webserver_contracts",
 ]
 
 [[package]]
