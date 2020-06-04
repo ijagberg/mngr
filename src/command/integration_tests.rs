@@ -98,6 +98,12 @@ impl IntegrationTests {
             ));
         }
 
+        trace!(
+            "found predictions by '{}': {:#?}",
+            self.test_user.username(),
+            result.predictions()
+        );
+
         Ok(())
     }
 
@@ -128,6 +134,7 @@ impl IntegrationTests {
                 result.deleted_predictions()
             ))
         } else {
+            trace!("deleted {} predictions", result.deleted_predictions());
             Ok(())
         }
     }
