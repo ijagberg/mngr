@@ -1,13 +1,15 @@
 use crate::IntegrationTestsOpts;
 use webserver_client::WebserverClient;
 use webserver_contracts::{
-    user::{DeleteUserParams, SetRoleParams, User},
+    prediction::AddPredictionParams,
+    user::{AddUserParams, DeleteUserParams, User},
     JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method, ResponseKind,
 };
 
 pub struct IntegrationTests {
     opts: IntegrationTestsOpts,
     client: WebserverClient,
+    test_user: User,
 }
 
 impl IntegrationTests {
@@ -16,19 +18,24 @@ impl IntegrationTests {
             .with_url(opts.url.clone())
             .build()
             .unwrap();
-        Self { opts, client }
+        let test_user = User::new("test_user".to_string(), "test_password".to_string());
+        Self {
+            opts,
+            client,
+            test_user,
+        }
     }
 
     pub async fn run_tests(&self) {
         info!("Adding user 'test_user'...");
-        self.test_add_user().await;
+        self.add_user().await.unwrap();
+        info!("Adding a prediction by 'test_user'...");
+        self.add_prediction().await.unwrap();
         info!("Deleting user 'test_user'...");
-        self.test_delete_user().await;
+        self.delete_user().await;
     }
 
-    async fn test_add_user(&self) {
-        use webserver_contracts::user::*;
-
+    async fn add_user(&self) -> Result<(), String> {
         let params = AddUserParams::new(User::new("test_user".into(), "test_password".into()));
         let request = JsonRpcRequest::new(
             JsonRpcVersion::Two,
@@ -37,37 +44,36 @@ impl IntegrationTests {
             Some("mngr_test_add_user".into()),
         );
 
-        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
+        let response: JsonRpcResponse = self
+            .client
+            .send_request(request)
+            .await
+            .map_err(|e| format!("{:?}", e))?;
 
         match response.kind() {
-            ResponseKind::Success => info!("success response"),
-            ResponseKind::Error(e) => error!("{:?}", e),
+            ResponseKind::Success => Ok(()),
+            ResponseKind::Error(e) => Err(format!("{:?}", e)),
         }
     }
 
-    async fn test_set_role(&self) {
-        let params = SetRoleParams::new(
-            User::new("test_user".to_string(), "test_password".to_string()),
-            "test_user".to_string(),
-            "admin".to_string(),
-        );
-
+    async fn add_prediction(&self) -> Result<(), String> {
+        let params = AddPredictionParams::new("Test prediction".into(), self.test_user.clone());
         let request = JsonRpcRequest::new(
             JsonRpcVersion::Two,
-            Method::SetRole.to_string(),
+            Method::AddPrediction.to_string(),
             params,
-            Some("mngr_test_set_role".into()),
+            Some("mngr_test_add_prediction".into()),
         );
 
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         match response.kind() {
-            ResponseKind::Success => info!("success response"),
-            ResponseKind::Error(e) => error!("{:?}", e),
+            ResponseKind::Success => Ok(()),
+            ResponseKind::Error(e) => Err(format!("{:?}", e)),
         }
     }
 
-    async fn test_delete_user(&self) {
+    async fn delete_user(&self) {
         let params = DeleteUserParams::new(
             User::new("test_user".into(), "test_password".into()),
             "test_user".into(),
