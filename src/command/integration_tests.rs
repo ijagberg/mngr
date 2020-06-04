@@ -2,7 +2,10 @@ use crate::IntegrationTestsOpts;
 use webserver_client::WebserverClient;
 use webserver_contracts::{
     prediction::{AddPredictionParams, SearchPredictionsParams, SearchPredictionsResult},
-    user::{AddUserParams, DeleteUserParams, DeleteUserResult, User},
+    user::{
+        AddUserParams, DeleteUserParams, DeleteUserResult, User, ValidateUserParams,
+        ValidateUserResult,
+    },
     JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method, ResponseKind,
 };
 
@@ -27,8 +30,10 @@ impl IntegrationTests {
     }
 
     pub async fn run_tests(&self) -> Result<(), String> {
-        info!("Adding user 'test_user'...");
+        info!("Adding user '{}'...", self.test_user.username());
         self.add_user().await?;
+        info!("Validating user '{}'...", self.test_user.username());
+        self.validate_user().await?;
         info!("Adding a prediction by 'test_user'...");
         self.add_prediction().await?;
         info!("Searching for predictions by 'test_user'...");
@@ -40,7 +45,7 @@ impl IntegrationTests {
     }
 
     async fn add_user(&self) -> Result<(), String> {
-        let params = AddUserParams::new(User::new("test_user".into(), "test_password".into()));
+        let params = AddUserParams::new(self.test_user.clone());
         let request = JsonRpcRequest::new(
             JsonRpcVersion::Two,
             Method::AddUser.to_string(),
@@ -57,6 +62,34 @@ impl IntegrationTests {
         match response.kind() {
             ResponseKind::Success(_) => Ok(()),
             ResponseKind::Error(e) => Err(format!("{:?}", e)),
+        }
+    }
+
+    async fn validate_user(&self) -> Result<(), String> {
+        let params = ValidateUserParams::new(self.test_user.clone());
+        let request = JsonRpcRequest::new(
+            JsonRpcVersion::Two,
+            Method::ValidateUser.to_string(),
+            params,
+            Some("mngr_validate_user".into()),
+        );
+
+        let response = self
+            .client
+            .send_request(request)
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+
+        let result: ValidateUserResult = match response.kind() {
+            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Error(e) => return Err(format!("{:?}", e)),
+        };
+
+        if result.valid() {
+            trace!("'{}' is valid", self.test_user.username());
+            Ok(())
+        } else {
+            Err(format!("'{}' is not valid", self.test_user.username()))
         }
     }
 
