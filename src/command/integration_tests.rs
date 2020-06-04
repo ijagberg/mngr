@@ -1,8 +1,8 @@
 use crate::IntegrationTestsOpts;
 use webserver_client::WebserverClient;
 use webserver_contracts::{
-    prediction::AddPredictionParams,
-    user::{AddUserParams, DeleteUserParams, User},
+    prediction::{AddPredictionParams, SearchPredictionsParams, SearchPredictionsResult},
+    user::{AddUserParams, DeleteUserParams, DeleteUserResult, User},
     JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method, ResponseKind,
 };
 
@@ -32,7 +32,7 @@ impl IntegrationTests {
         info!("Adding a prediction by 'test_user'...");
         self.add_prediction().await.unwrap();
         info!("Deleting user 'test_user'...");
-        self.delete_user().await;
+        self.delete_user().await.unwrap();
     }
 
     async fn add_user(&self) -> Result<(), String> {
@@ -44,14 +44,14 @@ impl IntegrationTests {
             Some("mngr_test_add_user".into()),
         );
 
-        let response: JsonRpcResponse = self
+        let response = self
             .client
             .send_request(request)
             .await
             .map_err(|e| format!("{:?}", e))?;
 
         match response.kind() {
-            ResponseKind::Success => Ok(()),
+            ResponseKind::Success(_) => Ok(()),
             ResponseKind::Error(e) => Err(format!("{:?}", e)),
         }
     }
@@ -65,15 +65,41 @@ impl IntegrationTests {
             Some("mngr_test_add_prediction".into()),
         );
 
-        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
+        let response = self.client.send_request(request).await.unwrap();
 
         match response.kind() {
-            ResponseKind::Success => Ok(()),
+            ResponseKind::Success(_) => Ok(()),
             ResponseKind::Error(e) => Err(format!("{:?}", e)),
         }
     }
 
-    async fn delete_user(&self) {
+    async fn search_prediction_without_user(&self) -> Result<(), String> {
+        let params = SearchPredictionsParams::new(self.test_user.username().to_owned(), None);
+        let request = JsonRpcRequest::new(
+            JsonRpcVersion::Two,
+            Method::SearchPredictions.to_string(),
+            params,
+            Some("mngr_search_prediction_without_user".into()),
+        );
+
+        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
+
+        let result: SearchPredictionsResult = match response.kind() {
+            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Error(e) => return Err(format!("{:?}", e)),
+        };
+
+        if result.predictions().len() != 1 {
+            return Err(format!(
+                "should be exactly 1 prediction returned, was {}",
+                result.predictions().len()
+            ));
+        }
+
+        Ok(())
+    }
+
+    async fn delete_user(&self) -> Result<(), String> {
         let params = DeleteUserParams::new(
             User::new("test_user".into(), "test_password".into()),
             "test_user".into(),
@@ -87,9 +113,15 @@ impl IntegrationTests {
 
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
-        match response.kind() {
-            ResponseKind::Success => info!("success response"),
-            ResponseKind::Error(e) => error!("{:?}", e),
+        let result: DeleteUserResult = match response.kind() {
+            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Error(e) => return Err(format!("{:?}", e)),
+        };
+
+        if result.success() {
+            Ok(())
+        } else {
+            Err(format!("failed to delete user"))
         }
     }
 }
