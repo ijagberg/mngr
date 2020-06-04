@@ -31,6 +31,8 @@ impl IntegrationTests {
         self.add_user().await.unwrap();
         info!("Adding a prediction by 'test_user'...");
         self.add_prediction().await.unwrap();
+        info!("Searching for predictions by 'test_user'...");
+        self.search_prediction_without_user().await.unwrap();
         info!("Deleting user 'test_user'...");
         self.delete_user().await.unwrap();
     }
@@ -41,7 +43,7 @@ impl IntegrationTests {
             JsonRpcVersion::Two,
             Method::AddUser.to_string(),
             serde_json::to_value(params).unwrap(),
-            Some("mngr_test_add_user".into()),
+            Some("mngr_add_user".into()),
         );
 
         let response = self
@@ -62,7 +64,7 @@ impl IntegrationTests {
             JsonRpcVersion::Two,
             Method::AddPrediction.to_string(),
             params,
-            Some("mngr_test_add_prediction".into()),
+            Some("mngr_add_prediction".into()),
         );
 
         let response = self.client.send_request(request).await.unwrap();
@@ -108,7 +110,7 @@ impl IntegrationTests {
             JsonRpcVersion::Two,
             Method::DeleteUser.to_string(),
             params,
-            Some("mngr_test_delete_user".into()),
+            Some("mngr_delete_user".into()),
         );
 
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
@@ -118,10 +120,15 @@ impl IntegrationTests {
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if result.success() {
-            Ok(())
-        } else {
+        if !result.success() {
             Err(format!("failed to delete user"))
+        } else if result.deleted_predictions() != 1 {
+            Err(format!(
+                "should have only deleted 1 prediction, deleted {}",
+                result.deleted_predictions()
+            ))
+        } else {
+            Ok(())
         }
     }
 }
