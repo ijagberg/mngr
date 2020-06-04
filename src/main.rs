@@ -54,7 +54,11 @@ async fn main() {
     match opts.cmd {
         Subcommand::IntegrationTests(opts) => {
             let handler = command::IntegrationTests::new(opts);
-            handler.run_tests().await;
+            if let Err(message) = handler.run_tests().await {
+                error!("failed with message: {}", message);
+            } else {
+                info!("tests succeeded");
+            }
         }
     }
 }

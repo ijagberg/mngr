@@ -26,15 +26,17 @@ impl IntegrationTests {
         }
     }
 
-    pub async fn run_tests(&self) {
+    pub async fn run_tests(&self) -> Result<(), String> {
         info!("Adding user 'test_user'...");
-        self.add_user().await.unwrap();
+        self.add_user().await?;
         info!("Adding a prediction by 'test_user'...");
-        self.add_prediction().await.unwrap();
+        self.add_prediction().await?;
         info!("Searching for predictions by 'test_user'...");
-        self.search_prediction_without_user().await.unwrap();
+        self.search_prediction_without_user().await?;
         info!("Deleting user 'test_user'...");
-        self.delete_user().await.unwrap();
+        self.delete_user().await?;
+
+        Ok(())
     }
 
     async fn add_user(&self) -> Result<(), String> {
