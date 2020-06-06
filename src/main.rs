@@ -18,18 +18,23 @@ struct Opts {
 #[derive(StructOpt, Debug)]
 enum Subcommand {
     IntegrationTests(IntegrationTestsOpts),
-}
-
-#[derive(StructOpt, Debug)]
-pub struct ParseWebserverLogsOpts {
-    #[structopt(long, env = "MNGR_DATABASE_PATH")]
-    db_path: String,
+    CleanMqttStoreDb(CleanMqttStoreDbOpts),
 }
 
 #[derive(StructOpt, Debug)]
 pub struct IntegrationTestsOpts {
     #[structopt(long, default_value = "localhost")]
     url: String,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct CleanMqttStoreDbOpts {
+    #[structopt(long)]
+    db_path: String,
+    #[structopt(long, default_value = "7")]
+    days: u8,
+    #[structopt(long)]
+    vacuum: bool,
 }
 
 #[tokio::main]
@@ -58,6 +63,17 @@ async fn main() {
                 error!("failed with message: {}", message);
             } else {
                 info!("tests succeeded");
+            }
+        }
+        Subcommand::CleanMqttStoreDb(opts) => {
+            let handler = command::CleanMqttStoreDb::new(opts);
+            if let Err(message) = handler.clean_mqtt_store_db() {
+                error!(
+                    "failed to clean mqtt store database with message: '{}'",
+                    message
+                );
+            } else {
+                info!("successfully cleaned mqtt store database");
             }
         }
     }

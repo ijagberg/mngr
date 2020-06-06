@@ -3,10 +3,10 @@ use webserver_client::WebserverClient;
 use webserver_contracts::{
     prediction::{AddPredictionParams, SearchPredictionsParams, SearchPredictionsResult},
     user::{
-        AddUserParams, DeleteUserParams, DeleteUserResult, User, ValidateUserParams,
+        AddUserParams, AddUserResult, DeleteUserParams, DeleteUserResult, User, ValidateUserParams,
         ValidateUserResult,
     },
-    JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method, ResponseKind,
+    JsonRpcRequest, JsonRpcRequestBuilder, JsonRpcResponse, JsonRpcVersion, Method, ResponseKind,
 };
 
 pub struct IntegrationTests {
@@ -33,43 +33,55 @@ impl IntegrationTests {
     }
 
     pub async fn run_tests(&self) -> Result<(), String> {
-        info!("Adding user '{}'...", self.test_user.username());
-        self.add_test_user().await?;
-        info!("Adding user '{}'...", self.other_user.username());
-        self.add_other_user().await?;
-        info!("Validating user '{}'...", self.test_user.username());
-        self.validate_test_user().await?;
-        info!("Validating user '{}'...", self.other_user.username());
-        self.validate_other_user().await?;
-        info!("Adding a prediction by '{}'...", self.test_user.username());
+        info!("adding user '{}'...", self.test_user.username());
+        self.add_user(self.test_user.clone()).await?;
+        info!("adding user '{}'...", self.other_user.username());
+        self.add_user(self.other_user.clone()).await?;
+
+        info!("validating user '{}'...", self.test_user.username());
+        self.validate_user(&self.test_user).await?;
+        info!("validating user '{}'...", self.other_user.username());
+        self.validate_user(&self.other_user).await.unwrap();
+        info!(
+            "validating user '{}' with wrong password",
+            self.test_user.username()
+        );
+        self.validate_user(&User::new(
+            self.test_user.username().to_owned(),
+            "wrong_password".into(),
+        ))
+        .await
+        .unwrap_err();
+
+        info!("adding a prediction by '{}'...", self.test_user.username());
         self.add_prediction_by_test_user().await?;
         info!(
-            "Searching for predictions by '{}'...",
+            "searching for predictions by '{}'...",
             self.test_user.username()
         );
         self.search_prediction_by_test_user().await?;
         info!(
-            "Searching for predictions by '{}' as '{}'...",
+            "searching for predictions by '{}' as '{}'...",
             self.test_user.username(),
             self.test_user.username()
         );
         self.search_prediction_by_test_user_as_test_user().await?;
-        info!("Deleting user '{}'...", self.test_user.username());
+        info!("deleting user '{}'...", self.test_user.username());
         self.delete_test_user().await?;
-        info!("Deleting user '{}'...", self.other_user.username());
+        info!("deleting user '{}'...", self.other_user.username());
         self.delete_other_user().await?;
 
         Ok(())
     }
 
-    async fn add_test_user(&self) -> Result<(), String> {
-        let params = AddUserParams::new(self.test_user.clone());
-        let request = JsonRpcRequest::new(
-            JsonRpcVersion::Two,
-            Method::AddUser.to_string(),
-            serde_json::to_value(params).unwrap(),
-            Some("add_test_user".into()),
-        );
+    async fn add_user(&self, user: User) -> Result<(), String> {
+        let username = user.username().to_owned();
+        let params = AddUserParams::new(user);
+        let request = JsonRpcRequestBuilder::new()
+            .with_method(Method::AddUser.to_string())
+            .with_id("add_user".into())
+            .with_params(params)
+            .build()?;
 
         let response = self
             .client
@@ -77,86 +89,40 @@ impl IntegrationTests {
             .await
             .map_err(|e| format!("{:?}", e))?;
 
-        match response.kind() {
-            ResponseKind::Success(_) => Ok(()),
-            ResponseKind::Error(e) => Err(format!("{:?}", e)),
+        let result: AddUserResult = match response.kind() {
+            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Error(e) => return Err(format!("{:?}", e)),
+        };
+
+        if result.success() {
+            Ok(())
+        } else {
+            Err(format!("failed to add user: '{}'", username))
         }
     }
 
-    async fn add_other_user(&self) -> Result<(), String> {
-        let params = AddUserParams::new(self.other_user.clone());
-        let request = JsonRpcRequest::new(
-            JsonRpcVersion::Two,
-            Method::AddUser.to_string(),
-            serde_json::to_value(params).unwrap(),
-            Some("add_other_user".into()),
-        );
+    async fn validate_user(&self, user: &User) -> Result<(), String> {
+        let params = ValidateUserParams::new(user.clone());
+        let request = JsonRpcRequestBuilder::new()
+            .with_method(Method::ValidateUser.to_string())
+            .with_params(params)
+            .with_id("validate_user".into())
+            .build()?;
 
         let response = self
             .client
             .send_request(request)
             .await
             .map_err(|e| format!("{:?}", e))?;
-
-        match response.kind() {
-            ResponseKind::Success(_) => Ok(()),
-            ResponseKind::Error(e) => Err(format!("{:?}", e)),
-        }
-    }
-
-    async fn validate_test_user(&self) -> Result<(), String> {
-        let params = ValidateUserParams::new(self.test_user.clone());
-        let request = JsonRpcRequest::new(
-            JsonRpcVersion::Two,
-            Method::ValidateUser.to_string(),
-            params,
-            Some("validate_test_user".into()),
-        );
-
-        let response = self
-            .client
-            .send_request(request)
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-
         let result: ValidateUserResult = match response.kind() {
             ResponseKind::Success(_) => response.result_as().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
         if result.valid() {
-            trace!("'{}' is valid", self.test_user.username());
             Ok(())
         } else {
-            Err(format!("'{}' is not valid", self.test_user.username()))
-        }
-    }
-
-    async fn validate_other_user(&self) -> Result<(), String> {
-        let params = ValidateUserParams::new(self.other_user.clone());
-        let request = JsonRpcRequest::new(
-            JsonRpcVersion::Two,
-            Method::ValidateUser.to_string(),
-            params,
-            Some("validate_other_user".into()),
-        );
-
-        let response = self
-            .client
-            .send_request(request)
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-
-        let result: ValidateUserResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
-            ResponseKind::Error(e) => return Err(format!("{:?}", e)),
-        };
-
-        if result.valid() {
-            trace!("'{}' is valid", self.other_user.username());
-            Ok(())
-        } else {
-            Err(format!("'{}' is not valid", self.other_user.username()))
+            Err(format!("user '{}' is not valid", user.username()))
         }
     }
 
