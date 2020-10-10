@@ -2,3 +2,4 @@
 .env
 *.bak
 test_data
+run_test.sh
