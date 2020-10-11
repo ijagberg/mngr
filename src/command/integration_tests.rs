@@ -1,4 +1,5 @@
 use crate::IntegrationTestsOpts;
+use influx::{InfluxClient, Measurement};
 use webserver_client::WebserverClient;
 use webserver_contracts::{
     prediction::{AddPredictionParams, SearchPredictionsParams, SearchPredictionsResult},
@@ -12,6 +13,7 @@ use webserver_contracts::{
 pub struct IntegrationTests {
     opts: IntegrationTestsOpts,
     client: WebserverClient,
+    influx_client: InfluxClient,
     test_user: User,
     other_user: User,
 }
@@ -22,17 +24,26 @@ impl IntegrationTests {
             .with_url(opts.url.clone())
             .build()
             .unwrap();
+        let influx_client = InfluxClient::builder(
+            opts.influx_url.clone(),
+            opts.influx_key.clone(),
+            opts.influx_org.clone(),
+        )
+        .build()
+        .unwrap();
         let test_user = User::new("test_user".to_string(), "test_password".to_string());
         let other_user = User::new("other_user".to_string(), "other_password".to_string());
         Self {
             opts,
             client,
+            influx_client,
             test_user,
             other_user,
         }
     }
 
     pub async fn run_tests(&self) -> Result<(), String> {
+        let timer = std::time::Instant::now();
         info!("adding user '{}'...", self.test_user.username());
         self.add_user(self.test_user.clone()).await?;
         info!("adding user '{}'...", self.other_user.username());
@@ -71,6 +82,16 @@ impl IntegrationTests {
         info!("deleting user '{}'...", self.other_user.username());
         self.delete_other_user().await?;
 
+        self.influx_client
+            .send_batch(
+                "mngr",
+                &vec![Measurement::builder("integration_test_execution".into())
+                    .with_tag("success".into(), "true".into())
+                    .with_field_u128("duration_ms".into(), timer.elapsed().as_millis())
+                    .build()
+                    .unwrap()],
+            )
+            .await;
         Ok(())
     }
 

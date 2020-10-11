@@ -25,6 +25,12 @@ enum Subcommand {
 pub struct IntegrationTestsOpts {
     #[structopt(long, default_value = "localhost")]
     url: String,
+    #[structopt(long, env = "MNGR_INFLUX_URL")]
+    influx_url: String,
+    #[structopt(long, env = "MNGR_INFLUX_KEY")]
+    influx_key: String,
+    #[structopt(long, env = "MNGR_INFLUX_ORG")]
+    influx_org: String,
 }
 
 #[derive(StructOpt, Debug)]
