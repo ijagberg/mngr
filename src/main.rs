@@ -19,6 +19,7 @@ struct Opts {
 enum Subcommand {
     IntegrationTests(IntegrationTestsOpts),
     CleanMqttStoreDb(CleanMqttStoreDbOpts),
+    CollectMetrics(CollectMetricsOpts),
 }
 
 #[derive(StructOpt, Debug)]
@@ -41,6 +42,18 @@ pub struct CleanMqttStoreDbOpts {
     days: u8,
     #[structopt(long)]
     vacuum: bool,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct CollectMetricsOpts {
+    #[structopt(long, default_value = "5000")]
+    sleep_ms: u64,
+    #[structopt(long, env = "MNGR_INFLUX_URL")]
+    influx_url: String,
+    #[structopt(long, env = "MNGR_INFLUX_KEY")]
+    influx_key: String,
+    #[structopt(long, env = "MNGR_INFLUX_ORG")]
+    influx_org: String,
 }
 
 #[tokio::main]
@@ -81,6 +94,10 @@ async fn main() {
             } else {
                 info!("successfully cleaned mqtt store database");
             }
+        }
+        Subcommand::CollectMetrics(opts) => {
+            let handler = command::CollectMetrics::new(opts);
+            handler.collect_metrics().await;
         }
     }
 }
