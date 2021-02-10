@@ -4,12 +4,6 @@ version = "0.1.0"
 authors = ["Isak Jägberg <ijagberg@gmail.com>"]
 edition = "2018"
 
-[dependencies.webserver_contracts]
-path = "../webserver/libs/webserver_contracts"
-
-[dependencies.webserver_client]
-path = "../webserver/libs/client"
-
 [dependencies]
 structopt = "0.3.14"
 tokio = { version = "0.2.21", features = ["macros", "rt-threaded"] }
@@ -24,3 +18,5 @@ regex = "1.3.9"
 rusqlite = "0.23.1"
 influx = { git = "https://github.com/ijagberg/influx", branch = "main" }
 sysinfo = "0.15.3"
+webserver_client = { git = "https://github.com/ijagberg/webserver_client", branch = "main" }
+webserver_contracts = { git = "https://github.com/ijagberg/webserver_contracts", branch = "main" }
