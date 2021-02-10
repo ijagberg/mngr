@@ -26,30 +26,31 @@ impl CollectMetrics {
     pub async fn collect_metrics(self) {
         let mut sys = sysinfo::System::new_all();
         loop {
-            let timer = Instant::now();
-            info!("publishing server metrics to influx...");
             let used_mem = UsedMemory::new(sys.get_used_memory());
-            let response = self
-                .influx_client
-                .send_batch("mngr", &[Measurement::from(used_mem)])
-                .await;
-
-            let status = response.status();
-            if !status.is_success() {
-                let body = response.text().await.unwrap();
-                error!(
-                    "error response from influx: '{}' with body '{}'",
-                    status, body
-                );
-            } else {
-                info!(
-                    "success response from influx: '{}' after {:?}",
-                    status,
-                    timer.elapsed()
-                );
-            }
+            self.send_measurements(&[used_mem.into()]).await;
             tokio::time::delay_for(std::time::Duration::from_millis(self.opts.sleep_ms)).await;
             sys.refresh_all();
+        }
+    }
+
+    async fn send_measurements(&self, measurements: &[Measurement]) {
+        let timer = Instant::now();
+        info!("publishing server metrics to influx...");
+        let response = self.influx_client.send_batch("mngr", measurements).await;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap();
+            error!(
+                "error response from influx: '{}' with body '{}'",
+                status, body
+            );
+        } else {
+            info!(
+                "success response from influx: '{}' after {:?}",
+                status,
+                timer.elapsed()
+            );
         }
     }
 }
