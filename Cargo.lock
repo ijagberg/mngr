@@ -493,7 +493,7 @@ dependencies = [
 [[package]]
 name = "influx"
 version = "0.1.0"
-source = "git+https://github.com/ijagberg/influx?branch=main#171e1dd9b5d65cacfb683e40ddaad994185d8c3f"
+source = "git+ssh://git@github.com/ijagberg/influx?branch=main#171e1dd9b5d65cacfb683e40ddaad994185d8c3f"
 dependencies = [
  "csv",
  "log",
