@@ -27,7 +27,10 @@ impl CollectMetrics {
         let mut sys = sysinfo::System::new_all();
         loop {
             let used_mem = UsedMemory::new(sys.get_used_memory());
-            self.send_measurements(&[used_mem.into()]).await;
+            let count_processes = Processes::new(sys.get_processes().len() as u32);
+
+            self.send_measurements(&[used_mem.into(), count_processes.into()])
+                .await;
             tokio::time::delay_for(std::time::Duration::from_millis(self.opts.sleep_ms)).await;
             sys.refresh_all();
         }
@@ -69,6 +72,25 @@ impl From<UsedMemory> for Measurement {
     fn from(v: UsedMemory) -> Self {
         Measurement::builder("used_mem".into())
             .with_field_u128("kb".into(), v.kb as u128)
+            .build()
+            .unwrap()
+    }
+}
+
+struct Processes {
+    count: u32,
+}
+
+impl Processes {
+    fn new(count: u32) -> Self {
+        Self { count }
+    }
+}
+
+impl From<Processes> for Measurement {
+    fn from(v: Processes) -> Self {
+        Measurement::builder("number_of_processes".into())
+            .with_field_u128("count".into(), v.count as u128)
             .build()
             .unwrap()
     }

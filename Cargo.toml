@@ -16,7 +16,8 @@ chrono = "0.4.11"
 lazy_static = "1.4.0"
 regex = "1.3.9"
 rusqlite = "0.23.1"
-influx = { git = "ssh://git@github.com/ijagberg/influx", branch = "main" }
+influx = { path = "../influx" }
 sysinfo = "0.15.3"
-webserver_client = { git = "https://github.com/ijagberg/webserver_client", branch = "main" }
-webserver_contracts = { git = "https://github.com/ijagberg/webserver_contracts", branch = "main" }
+webserver_client = { path = "../webserver_client" }
+webserver_contracts = { path = "../webserver_contracts" }
+uuid = "0.8.2"

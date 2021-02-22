@@ -1,7 +1,9 @@
 use crate::IntegrationTestsOpts;
 use influx::{InfluxClient, Measurement};
+use uuid::Uuid;
 use webserver_client::WebserverClient;
 use webserver_contracts::{
+    list::{AddListItemParams, AddListItemResult},
     prediction::{AddPredictionParams, SearchPredictionsParams, SearchPredictionsResult},
     user::{
         AddUserParams, AddUserResult, DeleteUserParams, DeleteUserResult, User, ValidateUserParams,
@@ -44,42 +46,41 @@ impl IntegrationTests {
 
     pub async fn run_tests(&self) -> Result<(), String> {
         let timer = std::time::Instant::now();
-        info!("adding user '{}'...", self.test_user.username());
+        info!("adding user '{}'...", self.test_user.username);
         self.add_user(self.test_user.clone()).await?;
-        info!("adding user '{}'...", self.other_user.username());
+        info!("adding user '{}'...", self.other_user.username);
         self.add_user(self.other_user.clone()).await?;
 
-        info!("validating user '{}'...", self.test_user.username());
+        info!("validating user '{}'...", self.test_user.username);
         self.validate_user(&self.test_user).await?;
-        info!("validating user '{}'...", self.other_user.username());
+        info!("validating user '{}'...", self.other_user.username);
         self.validate_user(&self.other_user).await.unwrap();
         info!(
             "validating user '{}' with wrong password",
-            self.test_user.username()
+            self.test_user.username
         );
         self.validate_user(&User::new(
-            self.test_user.username().to_owned(),
+            self.test_user.username.to_owned(),
             "wrong_password".into(),
         ))
         .await
         .unwrap_err();
 
-        info!("adding a prediction by '{}'...", self.test_user.username());
+        info!("adding a prediction by '{}'...", self.test_user.username);
         self.add_prediction_by_test_user().await?;
         info!(
             "searching for predictions by '{}'...",
-            self.test_user.username()
+            self.test_user.username
         );
         self.search_prediction_by_test_user().await?;
         info!(
             "searching for predictions by '{}' as '{}'...",
-            self.test_user.username(),
-            self.test_user.username()
+            self.test_user.username, self.test_user.username
         );
         self.search_prediction_by_test_user_as_test_user().await?;
-        info!("deleting user '{}'...", self.test_user.username());
+        info!("deleting user '{}'...", self.test_user.username);
         self.delete_test_user().await?;
-        info!("deleting user '{}'...", self.other_user.username());
+        info!("deleting user '{}'...", self.other_user.username);
         self.delete_other_user().await?;
 
         self.influx_client
@@ -96,7 +97,7 @@ impl IntegrationTests {
     }
 
     async fn add_user(&self, user: User) -> Result<(), String> {
-        let username = user.username().to_owned();
+        let username = user.username.to_owned();
         let params = AddUserParams::new(user);
         let request = JsonRpcRequestBuilder::new()
             .with_method(Method::AddUser.to_string())
@@ -111,11 +112,11 @@ impl IntegrationTests {
             .map_err(|e| format!("{:?}", e))?;
 
         let result: AddUserResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if result.success() {
+        if result.success {
             Ok(())
         } else {
             Err(format!("failed to add user: '{}'", username))
@@ -136,14 +137,14 @@ impl IntegrationTests {
             .await
             .map_err(|e| format!("{:?}", e))?;
         let result: ValidateUserResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if result.valid() {
+        if result.valid {
             Ok(())
         } else {
-            Err(format!("user '{}' is not valid", user.username()))
+            Err(format!("user '{}' is not valid", user.username))
         }
     }
 
@@ -182,7 +183,7 @@ impl IntegrationTests {
     }
 
     async fn search_prediction_by_test_user(&self) -> Result<(), String> {
-        let params = SearchPredictionsParams::new(self.test_user.username().to_owned(), None);
+        let params = SearchPredictionsParams::new(self.test_user.username.to_owned(), None);
         let request = JsonRpcRequest::new(
             JsonRpcVersion::Two,
             Method::SearchPredictions.to_string(),
@@ -193,18 +194,18 @@ impl IntegrationTests {
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         let result: SearchPredictionsResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if result.predictions().len() != 1 {
+        if result.predictions.len() != 1 {
             return Err(format!(
                 "should be exactly 1 prediction returned, was {}",
-                result.predictions().len()
+                result.predictions.len()
             ));
         }
 
-        if result.predictions()[0].id().is_some() {
+        if result.predictions[0].id.is_some() {
             return Err(format!(
                 "should not get id in response when no user is provided"
             ));
@@ -212,8 +213,8 @@ impl IntegrationTests {
 
         trace!(
             "found predictions by '{}': {:#?}",
-            self.test_user.username(),
-            result.predictions()
+            self.test_user.username,
+            result.predictions
         );
 
         Ok(())
@@ -221,7 +222,7 @@ impl IntegrationTests {
 
     async fn search_prediction_by_test_user_as_test_user(&self) -> Result<(), String> {
         let params = SearchPredictionsParams::new(
-            self.test_user.username().to_owned(),
+            self.test_user.username.to_owned(),
             Some(self.test_user.clone()),
         );
         let request = JsonRpcRequest::new(
@@ -234,18 +235,18 @@ impl IntegrationTests {
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         let result: SearchPredictionsResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if result.predictions().len() != 1 {
+        if result.predictions.len() != 1 {
             return Err(format!(
                 "should be exactly 1 prediction returned, was {}",
-                result.predictions().len()
+                result.predictions.len()
             ));
         }
 
-        if result.predictions()[0].id().is_none() {
+        if result.predictions[0].id.is_none() {
             return Err(format!(
                 "should get id in response when same user is provided"
             ));
@@ -253,8 +254,8 @@ impl IntegrationTests {
 
         trace!(
             "found predictions by '{}': {:#?}",
-            self.test_user.username(),
-            result.predictions()
+            self.test_user.username,
+            result.predictions
         );
 
         Ok(())
@@ -262,7 +263,7 @@ impl IntegrationTests {
 
     async fn delete_test_user(&self) -> Result<(), String> {
         let params =
-            DeleteUserParams::new(self.test_user.clone(), self.test_user.username().to_owned());
+            DeleteUserParams::new(self.test_user.clone(), self.test_user.username.to_owned());
         let request = JsonRpcRequest::new(
             JsonRpcVersion::Two,
             Method::DeleteUser.to_string(),
@@ -273,28 +274,26 @@ impl IntegrationTests {
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         let result: DeleteUserResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if !result.success() {
+        if !result.success {
             Err(format!("failed to delete user"))
-        } else if result.deleted_predictions() != 1 {
+        } else if result.deleted_predictions != 1 {
             Err(format!(
                 "should have only deleted 1 prediction, deleted {}",
-                result.deleted_predictions()
+                result.deleted_predictions
             ))
         } else {
-            trace!("deleted {} predictions", result.deleted_predictions());
+            trace!("deleted {} predictions", result.deleted_predictions);
             Ok(())
         }
     }
 
     async fn delete_other_user(&self) -> Result<(), String> {
-        let params = DeleteUserParams::new(
-            self.other_user.clone(),
-            self.other_user.username().to_owned(),
-        );
+        let params =
+            DeleteUserParams::new(self.other_user.clone(), self.other_user.username.to_owned());
         let request = JsonRpcRequest::new(
             JsonRpcVersion::Two,
             Method::DeleteUser.to_string(),
@@ -305,20 +304,45 @@ impl IntegrationTests {
         let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
 
         let result: DeleteUserResult = match response.kind() {
-            ResponseKind::Success(_) => response.result_as().unwrap(),
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
             ResponseKind::Error(e) => return Err(format!("{:?}", e)),
         };
 
-        if !result.success() {
+        if !result.success {
             Err(format!("failed to delete user"))
-        } else if result.deleted_predictions() != 0 {
+        } else if result.deleted_predictions != 0 {
             Err(format!(
                 "should deleted 0 predictions, deleted {}",
-                result.deleted_predictions()
+                result.deleted_predictions
             ))
         } else {
-            trace!("deleted {} predictions", result.deleted_predictions());
+            trace!("deleted {} predictions", result.deleted_predictions);
             Ok(())
         }
+    }
+
+    async fn add_test_list_item(&self) -> Result<(), String> {
+        let params = AddListItemParams::new(
+            None,
+            String::from("test_list"),
+            String::from("test_item"),
+            None,
+            None,
+        );
+        let request = JsonRpcRequest::new(
+            JsonRpcVersion::Two,
+            Method::AddListItem.to_string(),
+            params,
+            Some(Uuid::new_v4().to_string()),
+        );
+
+        let response: JsonRpcResponse = self.client.send_request(request).await.unwrap();
+
+        let _result: AddListItemResult = match response.kind() {
+            ResponseKind::Success(_) => response.result_as().unwrap().unwrap(),
+            ResponseKind::Error(e) => return Err(format!("{:?}", e)),
+        };
+
+        Ok(())
     }
 }
