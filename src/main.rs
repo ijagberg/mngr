@@ -18,20 +18,16 @@ struct Opts {
 #[derive(StructOpt, Debug)]
 enum Subcommand {
     IntegrationTests(IntegrationTestsOpts),
-    CleanMqttStoreDb(CleanMqttStoreDbOpts),
-    CollectMetrics(CollectMetricsOpts),
 }
 
 #[derive(StructOpt, Debug)]
 pub struct IntegrationTestsOpts {
     #[structopt(long, default_value = "localhost")]
     url: String,
-    #[structopt(long, env = "MNGR_INFLUX_URL")]
-    influx_url: String,
-    #[structopt(long, env = "MNGR_INFLUX_KEY")]
-    influx_key: String,
-    #[structopt(long, env = "MNGR_INFLUX_ORG")]
-    influx_org: String,
+    #[structopt(long, env = "WEBSERVER_KEY_NAME")]
+    key_name: String,
+    #[structopt(long, env = "WEBSERVER_KEY_VALUE")]
+    key_value: String,
 }
 
 #[derive(StructOpt, Debug)]
@@ -83,21 +79,6 @@ async fn main() {
             } else {
                 info!("tests succeeded");
             }
-        }
-        Subcommand::CleanMqttStoreDb(opts) => {
-            let handler = command::CleanMqttStoreDb::new(opts);
-            if let Err(message) = handler.clean_mqtt_store_db() {
-                error!(
-                    "failed to clean mqtt store database with message: '{}'",
-                    message
-                );
-            } else {
-                info!("successfully cleaned mqtt store database");
-            }
-        }
-        Subcommand::CollectMetrics(opts) => {
-            let handler = command::CollectMetrics::new(opts);
-            handler.collect_metrics().await;
         }
     }
 }
