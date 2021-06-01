@@ -17,6 +17,6 @@ lazy_static = "1.4.0"
 regex = "1.3.9"
 rusqlite = "0.23.1"
 sysinfo = "0.15.3"
-webserver_client = { git = "https://github.com/ijagberg/webserver_client", branch = "main" }
-webserver_contracts =  { git = "https://github.com/ijagberg/webserver_contracts", branch = "main" }
+contracts = { git = "https://github.com/ijagberg/webserver", branch = "master" }
+client = { git = "https://github.com/ijagberg/webserver", branch = "master" }
 uuid = "0.8.2"

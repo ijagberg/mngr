@@ -1,7 +1,10 @@
 use crate::IntegrationTestsOpts;
+use client::WebserverClient;
+use contracts::{
+    list::{add_list_item, delete_list_item},
+    JsonRpcRequest, Method,
+};
 use uuid::Uuid;
-use webserver_client::WebserverClient;
-use webserver_contracts::{JsonRpcRequest, JsonRpcVersion, Method, list::{AddListItemParams, AddListItemResult, DeleteListItemParams, DeleteListItemResult}};
 
 pub struct IntegrationTests {
     opts: IntegrationTestsOpts,
@@ -10,7 +13,7 @@ pub struct IntegrationTests {
 
 impl IntegrationTests {
     pub fn new(opts: IntegrationTestsOpts) -> Self {
-        let client = WebserverClient::new(
+        let client = WebserverClient::builder(
             opts.url.clone(),
             opts.key_name.clone(),
             opts.key_value.clone(),
@@ -27,15 +30,10 @@ impl IntegrationTests {
     }
 
     async fn add_and_delete_list_item(&self) -> Result<(), String> {
-        let params = AddListItemParams::new(
-            None,
-            "test_list_type".to_string(),
-            "Test item".to_string(),
-            None,
-            None,
-        );
+        let params =
+            add_list_item::Params::new(None, "test_list_type".to_string(), "Test item".to_string())
+                .unwrap();
         let request = JsonRpcRequest::new(
-            JsonRpcVersion::Two,
             Method::AddListItem.to_string(),
             params,
             Some(Uuid::new_v4().to_string()),
@@ -43,26 +41,26 @@ impl IntegrationTests {
 
         let response = self
             .client
-            .send_request(request)
+            .send_request(&request)
             .await
             .map_err(|e| e.to_string())?;
 
-        let result: AddListItemResult = response.result_as().unwrap().unwrap();
+        let result: add_list_item::MethodResult = response.unwrap().result_as().unwrap().unwrap();
 
-        let params = DeleteListItemParams::new(result.id.unwrap());
+        let params = delete_list_item::Params::new(result.id.unwrap());
         let request = JsonRpcRequest::new(
-            JsonRpcVersion::Two,
             Method::DeleteListItem.to_string(),
             params,
             Some(Uuid::new_v4().to_string()),
         );
         let response = self
             .client
-            .send_request(request)
+            .send_request(&request)
             .await
             .map_err(|e| e.to_string())?;
 
-        let result: DeleteListItemResult = response.result_as().unwrap().unwrap();
+        let result: delete_list_item::MethodResult =
+            response.unwrap().result_as().unwrap().unwrap();
 
         Ok(())
     }
